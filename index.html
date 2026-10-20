@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="工作日誌">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1d5d86">
+<title>工作日誌</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* 免帳號版：資料只存在這支手機／這個瀏覽器（localStorage）。版面同雲端版，另加 PDF 列印版面 */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --line:#d9dfe5; --fg:#1b2530; --muted:#5d6b78;
+  --accent:#1d5d86; --accent-ink:#ffffff; --accent-soft:#e1edf5; --warn:#b4471f;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-num:"Barlow Condensed","Noto Sans TC",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#12181e; --surface:#1b232b; --line:#2e3943; --fg:#e4e9ee; --muted:#9aa8b5;
+  --accent:#6bb0dc; --accent-ink:#0d1a24; --accent-soft:#1d3444; --warn:#f0875f; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;-webkit-text-size-adjust:100%}
+.wrap{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:calc(14px + env(safe-area-inset-top,0px)) 100px}
+header.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-block:6px 14px}
+header.top h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.02em}
+header.top .today{font-family:var(--f-num);font-size:17px;color:var(--muted);font-variant-numeric:tabular-nums}
+.notice{background:var(--accent-soft);border-radius:10px;padding:12px 14px;font-size:14px}
+.notice.err{color:var(--warn)}
+section[data-view]{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+label,.lab{display:block;font-size:13px;color:var(--muted);margin-bottom:5px;letter-spacing:.04em}
+input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 11px;min-height:44px}
+textarea{min-height:110px;resize:vertical}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form .full{grid-column:1/-1}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:999px;padding:7px 13px;font:inherit;font-size:14px;cursor:pointer;min-height:36px}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn{font:inherit;font-weight:700;border:0;border-radius:10px;padding:12px 18px;min-height:46px;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line);font-weight:500}
+.btn.danger{background:var(--warn);color:#fff}
+.btn:disabled{opacity:.5}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row .grow{flex:1 1 auto}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:20;max-width:90vw;text-align:center}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);z-index:10}
+nav.tabs .in{display:flex;width:100%;max-width:640px}
+nav.tabs button{flex:1;background:none;border:0;font:inherit;font-size:13px;color:var(--muted);padding:10px 4px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:58px}
+nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
+nav.tabs button[aria-current="page"]{color:var(--accent);font-weight:700}
+.day{display:flex;flex-direction:column;gap:8px}
+.day h3{margin:4px 0 0;font-size:14px;color:var(--muted);font-weight:500;display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
+.entry{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
+.entry .meta{font-size:13px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+.entry .tag{background:var(--accent-soft);color:var(--accent);border-radius:4px;padding:0 6px;font-size:12px}
+.entry .hrs{font-family:var(--f-num);font-size:20px;font-weight:600;grid-row:1/3;grid-column:2;align-self:center}
+.entry .txt{white-space:pre-wrap;word-break:break-word;min-width:0}
+.empty{color:var(--muted);text-align:center;padding:28px 12px;border:1px dashed var(--line);border-radius:12px}
+.seg{display:grid;grid-template-columns:repeat(5,1fr);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;font:inherit;font-size:14px;padding:8px 0;border-radius:7px;color:var(--fg);cursor:pointer;min-height:38px}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--accent);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.period{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px}
+.period .lbl{text-align:center;flex:1}
+.period .lbl b{display:block;font-size:17px}
+.period .lbl span{color:var(--muted);font-family:var(--f-num);font-size:15px}
+.period button{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:20px;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.stat .n{font-family:var(--f-num);font-size:30px;font-weight:700;line-height:1.1}
+.stat .k{font-size:12px;color:var(--muted)}
+.bars{display:flex;flex-direction:column;gap:9px}
+.bar{display:grid;grid-template-columns:minmax(0,7.5em) 1fr auto;gap:10px;align-items:center;font-size:14px}
+.bar .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .tr{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}
+.bar .fl{height:100%;background:var(--accent);border-radius:5px}
+.bar .v{font-family:var(--f-num);font-size:16px;min-width:4.2em;text-align:right}
+h2{font-size:15px;margin:0 0 12px;font-weight:700}
+table.det{width:100%;border-collapse:collapse;font-size:14px}
+table.det th,table.det td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+table.det th{color:var(--muted);font-weight:500;font-size:12px;white-space:nowrap}
+table.det td.d,table.det td.h{font-family:var(--f-num);font-size:15px;white-space:nowrap}
+table.det td.c{white-space:pre-wrap;word-break:break-word;min-width:10em}
+.scroll{overflow-x:auto}
+.confirm{background:var(--accent-soft);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.hint{font-size:13px;color:var(--muted);margin:6px 0 0}
+#printArea{display:none}
+@media (max-width:420px){.form{grid-template-columns:1fr}.stat .n{font-size:26px}}
+
+/* ---------- PDF 列印版面 ---------- */
+@page{size:A4;margin:14mm 12mm}
+@media print{
+  body{background:#fff;color:#000;font-size:10.5pt}
+  .wrap,nav.tabs,.toast{display:none!important}
+  #printArea{display:block}
+  .pa h1{font-size:17pt;margin:0 0 2mm;text-align:center;letter-spacing:.2em}
+  .pa .sub{text-align:center;margin-bottom:5mm;font-size:10.5pt}
+  .pa .info{display:flex;justify-content:space-between;margin-bottom:3mm;font-size:10pt}
+  .pa table{width:100%;border-collapse:collapse;margin-bottom:5mm}
+  .pa th,.pa td{border:0.6pt solid #000;padding:1.6mm 2mm;vertical-align:top;text-align:left}
+  .pa th{background:#e8e8e8;font-weight:700;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pa td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .pa td.c{white-space:pre-wrap;word-break:break-word}
+  .pa h2{font-size:11.5pt;margin:4mm 0 2mm}
+  .pa .two{display:flex;gap:5mm}.pa .two>div{flex:1}
+  .pa tr{break-inside:avoid}
+  .pa .sign{display:flex;gap:5mm;margin-top:8mm}
+  .pa .sign div{flex:1;border:0.6pt solid #000;height:22mm;padding:1.5mm 2mm;font-size:10pt}
+  .pa .foot{margin-top:4mm;font-size:8.5pt;color:#555;text-align:right}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><h1>工作日誌</h1><span class="today" id="todayLbl"></span></header>
+  <div class="notice err" id="status" hidden></div>
+
+  <section data-view="add" id="v-add">
+    <div class="card">
+      <form id="f" class="form" novalidate>
+        <div><label for="f-date">日期</label><input type="date" id="f-date"></div>
+        <div><label for="f-hours">工時（小時）</label><input type="number" id="f-hours" inputmode="decimal" step="0.5" min="0" max="24" placeholder="8"></div>
+        <div class="full"><label for="f-project">工程／專案</label><input id="f-project" list="projList" placeholder="例：○○路排水改善工程" autocomplete="off"><datalist id="projList"></datalist></div>
+        <div class="full"><span class="lab">類別</span><div class="chips" id="catChips"></div></div>
+        <div class="full"><label for="f-content">工作內容</label><textarea id="f-content" placeholder="例：會同監造查驗 B 段鋼筋，完成 3 處；整理估驗資料"></textarea></div>
+        <div class="full"><label for="f-note">備註（選填）</label><input id="f-note" placeholder="天氣、待辦、聯絡事項…"></div>
+        <div class="full row">
+          <button type="submit" class="btn grow" id="f-save">儲存</button>
+          <button type="button" class="btn ghost" id="f-cancel" hidden>取消編輯</button>
+        </div>
+        <div class="full" id="delBox" hidden>
+          <button type="button" class="btn ghost" id="f-del" style="color:var(--warn)">刪除這筆</button>
+          <div class="confirm" id="delConfirm" hidden>
+            <div>確定刪除這筆紀錄？刪除後無法復原。</div>
+            <div class="row"><button type="button" class="btn danger" id="f-delYes">刪除</button><button type="button" class="btn ghost" id="f-delNo">保留</button></div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section data-view="list" id="v-list" hidden>
+    <input type="search" id="q" placeholder="搜尋內容、專案、備註">
+    <div id="listBox" class="day"></div>
+  </section>
+
+  <section data-view="report" id="v-report" hidden>
+    <div class="card">
+      <div class="seg" id="seg">
+        <button type="button" data-p="week">週</button><button type="button" data-p="month">月</button><button type="button" data-p="quarter">季</button><button type="button" data-p="half">半年</button><button type="button" data-p="year">年</button>
+      </div>
+      <div class="period">
+        <button type="button" id="prev" aria-label="上一期">‹</button>
+        <div class="lbl"><b id="pName"></b><span id="pRange"></span></div>
+        <button type="button" id="next" aria-label="下一期">›</button>
+      </div>
+    </div>
+    <div class="row">
+      <button type="button" class="btn grow" id="pdfBtn">輸出 PDF</button>
+      <button type="button" class="btn ghost grow" id="exportCsv">匯出 Excel</button>
+      <button type="button" class="btn ghost grow" id="copyTxt">複製文字</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n" id="sHours">0</div><div class="k">總工時</div></div>
+      <div class="stat"><div class="n" id="sDays">0</div><div class="k">工作天數</div></div>
+      <div class="stat"><div class="n" id="sCount">0</div><div class="k">紀錄筆數</div></div>
+    </div>
+    <div class="card"><h2>依工程／專案</h2><div class="bars" id="byProj"></div></div>
+    <div class="card"><h2>依類別</h2><div class="bars" id="byCat"></div></div>
+    <div class="card"><h2>明細</h2><div class="scroll"><table class="det"><thead><tr><th>日期</th><th>專案</th><th>類別</th><th>工作內容</th><th>工時</th></tr></thead><tbody id="detail"></tbody></table></div></div>
+    <textarea id="copyFallback" hidden readonly></textarea>
+  </section>
+
+  <section data-view="set" id="v-set" hidden>
+    <div class="card">
+      <h2>報表抬頭</h2>
+      <div class="form">
+        <div class="full"><label for="s-name">姓名（印在 PDF 上）</label><input id="s-name" placeholder="例：王小明"></div>
+        <div class="full"><label for="s-org">單位／公司（選填）</label><input id="s-org" placeholder="例：○○營造 工務部"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>資料備份</h2>
+      <p class="hint" style="margin:0 0 12px">紀錄只存在<b>這支手機的這個瀏覽器</b>裡。換手機、清除瀏覽器資料或刪除主畫面圖示前，請先下載備份。</p>
+      <div class="row">
+        <button type="button" class="btn grow" id="backupBtn">下載備份檔</button>
+        <button type="button" class="btn ghost grow" id="restoreBtn">從備份檔還原</button>
+        <input type="file" id="restoreFile" accept=".json,application/json" hidden>
+      </div>
+      <p class="hint" id="countHint"></p>
+    </div>
+    <div class="card">
+      <h2>PDF 怎麼存</h2>
+      <p class="hint" style="margin:0">按「輸出 PDF」後會開啟列印畫面：<br>
+      ・<b>Android</b>：印表機選「儲存為 PDF」→ 下載圖示。<br>
+      ・<b>iPhone</b>：點右上「分享」→「儲存到檔案」或傳 LINE。<br>
+      ・<b>電腦</b>：目的地選「另存為 PDF」。</p>
+    </div>
+  </section>
+</div>
+
+<nav class="tabs"><div class="in">
+  <button type="button" data-tab="add" aria-current="page"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>記一筆</button>
+  <button type="button" data-tab="list"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>紀錄</button>
+  <button type="button" data-tab="report"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>報表</button>
+  <button type="button" data-tab="set"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>設定</button>
+</div></nav>
+<div class="toast" id="toast" hidden></div>
+<div id="printArea" class="pa"></div>
+
+<script>
+const CATS=["施工督導","查驗","會議","估驗計價","文書行政","測量","採購","其他"];
+const KEY="worklog-v1", SKEY="worklog-settings";
+const $=id=>document.getElementById(id);
+let entries=[], editingId=null, cat=CATS[0], period="month", anchor=new Date(), settings={name:"",org:""};
+
+/* ---------- 本機儲存 ---------- */
+let storageOk=true;
+function load(){
+  try{entries=JSON.parse(localStorage.getItem(KEY)||"[]");settings={...settings,...JSON.parse(localStorage.getItem(SKEY)||"{}")}}
+  catch(e){storageOk=false}
+  sortEntries();
+}
+function persist(){
+  try{localStorage.setItem(KEY,JSON.stringify(entries));return true}
+  catch(e){toast("儲存失敗：瀏覽器不允許存資料（可能是無痕模式）");return false}
+}
+function saveSettings(){try{localStorage.setItem(SKEY,JSON.stringify(settings))}catch(e){}}
+function sortEntries(){entries.sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:(b.createdAt||"").localeCompare(a.createdAt||""))}
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* ---------- 日期工具 ---------- */
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parse=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const WK="日一二三四五六";
+const fmtDay=s=>{const d=parse(s);return `${d.getMonth()+1}/${d.getDate()}（${WK[d.getDay()]}）`};
+function range(p,a){
+  const y=a.getFullYear(),m=a.getMonth();let s,e,name;
+  if(p==="week"){const dow=(a.getDay()+6)%7;s=new Date(y,m,a.getDate()-dow);e=new Date(s.getFullYear(),s.getMonth(),s.getDate()+6);
+    const th=new Date(s.getFullYear(),s.getMonth(),s.getDate()+3),j1=new Date(th.getFullYear(),0,1);
+    name=`${th.getFullYear()} 年 第 ${Math.floor((th-j1)/864e5/7)+1} 週`;}
+  else if(p==="month"){s=new Date(y,m,1);e=new Date(y,m+1,0);name=`${y} 年 ${m+1} 月`;}
+  else if(p==="quarter"){const q=Math.floor(m/3);s=new Date(y,q*3,1);e=new Date(y,q*3+3,0);name=`${y} 年 第 ${q+1} 季`;}
+  else if(p==="half"){const h=m<6?0:1;s=new Date(y,h*6,1);e=new Date(y,h*6+6,0);name=`${y} 年 ${h?"下":"上"}半年`;}
+  else{s=new Date(y,0,1);e=new Date(y,11,31);name=`${y} 年`;}
+  return {s:ymd(s),e:ymd(e),name};
+}
+const PNAME={week:"週報",month:"月報",quarter:"季報",half:"半年報",year:"年報"};
+function shift(dir){
+  const a=new Date(anchor);
+  if(period==="week")a.setDate(a.getDate()+7*dir);
+  else{a.setDate(1);a.setMonth(a.getMonth()+dir*({month:1,quarter:3,half:6,year:12})[period]);}
+  anchor=a;renderReport();
+}
+
+/* ---------- 介面 ---------- */
+function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
+function show(tab){
+  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==tab);
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.dataset.tab===tab?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
+  if(tab==="report")renderReport(); if(tab==="list")renderList(); if(tab==="set")renderSet();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>show(b.dataset.tab));
+
+function refreshProjects(){
+  const projs=[...new Set(entries.map(e=>e.project).filter(Boolean))];
+  $("projList").innerHTML="";projs.forEach(p=>{const o=document.createElement("option");o.value=p;$("projList").appendChild(o)});
+}
+function renderChips(){
+  $("catChips").innerHTML="";
+  CATS.forEach(c=>{const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=c;b.setAttribute("aria-pressed",c===cat);b.onclick=()=>{cat=c;renderChips()};$("catChips").appendChild(b)});
+}
+function resetForm(){
+  editingId=null;$("f").reset();$("f-date").value=ymd(new Date());
+  if(entries[0])$("f-project").value=entries[0].project||"";
+  cat=CATS[0];renderChips();$("f-save").textContent="儲存";$("f-cancel").hidden=true;$("delBox").hidden=true;$("delConfirm").hidden=true;
+}
+function editEntry(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  editingId=id;$("f-date").value=e.date;$("f-hours").value=e.hours||"";$("f-project").value=e.project||"";
+  $("f-content").value=e.content||"";$("f-note").value=e.note||"";cat=CATS.includes(e.category)?e.category:"其他";renderChips();
+  $("f-save").textContent="更新這筆";$("f-cancel").hidden=false;$("delBox").hidden=false;$("delConfirm").hidden=true;show("add");
+}
+$("f-cancel").onclick=resetForm;
+$("f-del").onclick=()=>$("delConfirm").hidden=false;
+$("f-delNo").onclick=()=>$("delConfirm").hidden=true;
+$("f-delYes").onclick=()=>{
+  const before=entries;entries=entries.filter(x=>x.id!==editingId);
+  if(!persist()){entries=before;return}
+  refreshProjects();toast("已刪除");resetForm();show("list");
+};
+$("f").onsubmit=ev=>{
+  ev.preventDefault();
+  const content=$("f-content").value.trim(), date=$("f-date").value;
+  if(!date){toast("請選擇日期");return}
+  if(!content){toast("請填寫工作內容");$("f-content").focus();return}
+  const h=parseFloat($("f-hours").value), now=new Date().toISOString();
+  const body={date,project:$("f-project").value.trim(),category:cat,content,hours:isNaN(h)?0:h,note:$("f-note").value.trim(),updatedAt:now};
+  const before=entries.slice();
+  if(editingId){entries=entries.map(x=>x.id===editingId?{...x,...body}:x)}
+  else entries.push({id:newId(),createdAt:now,...body});
+  sortEntries();
+  if(!persist()){entries=before;return}
+  refreshProjects();toast(editingId?"已更新":"已儲存 "+fmtDay(date));resetForm();
+};
+
+function entryBtn(e){
+  const b=document.createElement("button");b.type="button";b.className="entry";
+  const meta=document.createElement("div");meta.className="meta";
+  const tg=document.createElement("span");tg.className="tag";tg.textContent=e.category||"其他";meta.appendChild(tg);
+  if(e.project){const p=document.createElement("span");p.textContent=e.project;meta.appendChild(p)}
+  const t=document.createElement("div");t.className="txt";t.textContent=e.content+(e.note?"\n備註："+e.note:"");
+  const h=document.createElement("div");h.className="hrs";h.textContent=e.hours?e.hours+"h":"";
+  b.append(meta,h,t);b.onclick=()=>editEntry(e.id);return b;
+}
+function renderList(){
+  const box=$("listBox"),q=$("q").value.trim().toLowerCase();box.innerHTML="";
+  const list=entries.filter(e=>!q||[e.content,e.project,e.note,e.category].join(" ").toLowerCase().includes(q));
+  if(!list.length){box.innerHTML=`<div class="empty">${entries.length?"找不到符合的紀錄":"還沒有紀錄。到「記一筆」寫下今天做了什麼，這裡會依日期列出。"}</div>`;return}
+  let cur=null,grp;
+  list.slice(0,300).forEach(e=>{
+    if(e.date!==cur){cur=e.date;grp=document.createElement("div");grp.className="day";
+      const tot=list.filter(x=>x.date===cur).reduce((a,x)=>a+(x.hours||0),0);
+      const h=document.createElement("h3");h.innerHTML=`<span>${e.date.slice(0,4)}／${fmtDay(cur)}</span><span>${tot?tot+" 小時":""}</span>`;grp.appendChild(h);box.appendChild(grp)}
+    grp.appendChild(entryBtn(e));
+  });
+}
+$("q").oninput=renderList;
+
+function inPeriod(){const r=range(period,anchor);return {r,list:entries.filter(e=>e.date>=r.s&&e.date<=r.e).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0)}}
+function groupBy(list){
+  const bp=new Map(),bc=new Map();
+  list.forEach(e=>{[[bp,e.project||"（未填專案）"],[bc,e.category||"其他"]].forEach(([m,k])=>{const v=m.get(k)||{h:0,n:0};v.h+=e.hours||0;v.n++;m.set(k,v)})});
+  const srt=m=>[...m].sort((a,b)=>b[1].h-a[1].h||b[1].n-a[1].n);
+  return {bp:srt(bp),bc:srt(bc)};
+}
+function bars(el,arr){
+  el.innerHTML="";
+  if(!arr.length){el.innerHTML='<div class="empty">這段期間沒有紀錄</div>';return}
+  const max=Math.max(...arr.map(x=>x[1].h),1);
+  arr.forEach(([k,v])=>{const r=document.createElement("div");r.className="bar";
+    const nm=document.createElement("div");nm.className="nm";nm.textContent=k;nm.title=k;r.appendChild(nm);
+    const tr=document.createElement("div");tr.className="tr";tr.innerHTML=`<div class="fl" style="width:${(v.h/max*100).toFixed(1)}%"></div>`;r.appendChild(tr);
+    const vv=document.createElement("div");vv.className="v";vv.textContent=`${+v.h.toFixed(1)}h · ${v.n}筆`;r.appendChild(vv);el.appendChild(r)});
+}
+function renderReport(){
+  document.querySelectorAll("#seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.p===period));
+  const {r,list}=inPeriod();
+  $("pName").textContent=r.name;$("pRange").textContent=r.s.replaceAll("-","/")+" – "+r.e.replaceAll("-","/");
+  const hrs=list.reduce((a,e)=>a+(e.hours||0),0);
+  $("sHours").textContent=+hrs.toFixed(1);$("sDays").textContent=new Set(list.map(e=>e.date)).size;$("sCount").textContent=list.length;
+  const {bp,bc}=groupBy(list);bars($("byProj"),bp);bars($("byCat"),bc);
+  const tb=$("detail");tb.innerHTML="";
+  if(!list.length)tb.innerHTML='<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:18px">這段期間沒有紀錄</td></tr>';
+  list.forEach(e=>{const tr=document.createElement("tr");
+    [[e.date.slice(5).replace("-","/"),"d"],[e.project||"—",""],[e.category||"",""],[e.content+(e.note?"\n備註："+e.note:""),"c"],[e.hours||"","h"]].forEach(([t,c])=>{const td=document.createElement("td");if(c)td.className=c;td.textContent=t;tr.appendChild(td)});
+    tb.appendChild(tr)});
+}
+document.querySelectorAll("#seg button").forEach(b=>b.onclick=()=>{period=b.dataset.p;anchor=new Date();renderReport()});
+$("prev").onclick=()=>shift(-1);$("next").onclick=()=>shift(1);
+
+/* ---------- 輸出 ---------- */
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+$("pdfBtn").onclick=()=>{
+  const {r,list}=inPeriod();
+  if(!list.length){toast("這段期間沒有紀錄可輸出");return}
+  const hrs=list.reduce((a,e)=>a+(e.hours||0),0), days=new Set(list.map(e=>e.date)).size, {bp,bc}=groupBy(list);
+  const sum=arr=>arr.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="n">${v.n}</td><td class="n">${+v.h.toFixed(1)}</td></tr>`).join("");
+  $("printArea").innerHTML=`
+    <h1>工作日誌${PNAME[period]}</h1>
+    <div class="sub">${esc(r.name)}（${r.s.replaceAll("-","/")} ～ ${r.e.replaceAll("-","/")}）</div>
+    <div class="info"><span>${settings.org?"單位："+esc(settings.org):""}</span><span>填表人：${esc(settings.name)||"＿＿＿＿＿＿"}</span></div>
+    <table><tr><th>總工時</th><td class="n">${+hrs.toFixed(1)} 小時</td><th>工作天數</th><td class="n">${days} 天</td><th>紀錄筆數</th><td class="n">${list.length} 筆</td></tr></table>
+    <div class="two">
+      <div><h2>依工程／專案</h2><table><tr><th>工程／專案</th><th>筆數</th><th>工時</th></tr>${sum(bp)}</table></div>
+      <div><h2>依類別</h2><table><tr><th>類別</th><th>筆數</th><th>工時</th></tr>${sum(bc)}</table></div>
+    </div>
+    <h2>工作明細</h2>
+    <table><thead><tr><th style="width:17mm">日期</th><th style="width:30mm">工程／專案</th><th style="width:17mm">類別</th><th>工作內容</th><th style="width:11mm">工時</th></tr></thead><tbody>
+    ${list.map(e=>`<tr><td>${e.date.slice(5).replace("-","/")}（${WK[parse(e.date).getDay()]}）</td><td>${esc(e.project)}</td><td>${esc(e.category)}</td><td class="c">${esc(e.content)}${e.note?"\n備註："+esc(e.note):""}</td><td class="n">${e.hours||""}</td></tr>`).join("")}
+    </tbody></table>
+    <div class="sign"><div>填表人</div><div>主管</div></div>
+    <div class="foot">列印日期：${ymd(new Date()).replaceAll("-","/")}</div>`;
+  const old=document.title;document.title=`工作日誌${PNAME[period]}_${r.name.replaceAll(" ","")}`;
+  setTimeout(()=>{window.print();setTimeout(()=>document.title=old,1000)},50);
+};
+function saveFile(name,text,type){
+  const blob=new Blob([text],{type}),url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+const csvCell=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replaceAll('"','""')+'"':v};
+$("exportCsv").onclick=()=>{
+  const {r,list}=inPeriod();if(!list.length){toast("這段期間沒有紀錄可匯出");return}
+  const rows=[["日期","星期","工程/專案","類別","工作內容","工時","備註"],...list.map(e=>[e.date,WK[parse(e.date).getDay()],e.project,e.category,e.content,e.hours||"",e.note])];
+  rows.push([],["合計","","","","",list.reduce((a,e)=>a+(e.hours||0),0),""]);
+  saveFile(`工作日誌_${r.name.replaceAll(" ","")}.csv`,"﻿"+rows.map(x=>x.map(csvCell).join(",")).join("\r\n"),"text/csv;charset=utf-8");
+};
+$("copyTxt").onclick=async()=>{
+  const {r,list}=inPeriod();const hrs=list.reduce((a,e)=>a+(e.hours||0),0);
+  let t=`【工作日誌${PNAME[period]}】${r.name}（${r.s} ~ ${r.e}）${settings.name?"\n填表人："+settings.name:""}\n總工時 ${+hrs.toFixed(1)} 小時｜工作 ${new Set(list.map(e=>e.date)).size} 天｜${list.length} 筆\n`;
+  let cur=null;list.forEach(e=>{if(e.date!==cur){cur=e.date;t+=`\n■ ${e.date}（${WK[parse(e.date).getDay()]}）\n`}
+    t+=`・[${e.category}]${e.project?e.project+"：":""}${e.content}${e.hours?`（${e.hours}h）`:""}${e.note?` 備註：${e.note}`:""}\n`});
+  try{await navigator.clipboard.writeText(t);toast("已複製，可貼到 LINE 或 Word")}
+  catch(err){const ta=$("copyFallback");ta.value=t;ta.hidden=false;ta.focus();ta.select();toast("請長按選取後複製")}
+};
+
+/* ---------- 設定／備份 ---------- */
+function renderSet(){$("s-name").value=settings.name;$("s-org").value=settings.org;$("countHint").textContent=`目前共有 ${entries.length} 筆紀錄。`}
+$("s-name").onchange=()=>{settings.name=$("s-name").value.trim();saveSettings();toast("已儲存姓名")};
+$("s-org").onchange=()=>{settings.org=$("s-org").value.trim();saveSettings();toast("已儲存單位")};
+$("backupBtn").onclick=()=>{
+  if(!entries.length){toast("還沒有紀錄可備份");return}
+  saveFile(`工作日誌備份_${ymd(new Date())}.json`,JSON.stringify({app:"worklog",version:1,settings,entries},null,1),"application/json");
+};
+$("restoreBtn").onclick=()=>$("restoreFile").click();
+$("restoreFile").onchange=async ev=>{
+  const file=ev.target.files[0];ev.target.value="";if(!file)return;
+  try{
+    const data=JSON.parse(await file.text());const arr=Array.isArray(data)?data:data.entries;
+    if(!Array.isArray(arr))throw 0;
+    const map=new Map(entries.map(e=>[e.id,e]));let added=0;
+    arr.forEach(e=>{if(e&&e.id&&e.date&&!map.has(e.id)){map.set(e.id,e);added++}});
+    const before=entries;entries=[...map.values()];sortEntries();
+    if(!persist()){entries=before;return}
+    if(data.settings&&!settings.name){settings={...settings,...data.settings};saveSettings()}
+    refreshProjects();renderSet();toast(`已還原，新增 ${added} 筆（重複的略過）`);
+  }catch(e){toast("這不是工作日誌的備份檔，請確認檔案")}
+};
+
+/* ---------- 啟動 ---------- */
+$("todayLbl").textContent=ymd(new Date()).replaceAll("-","/")+"（"+WK[new Date().getDay()]+"）";
+load();
+if(!storageOk){$("status").hidden=false;$("status").textContent="這個瀏覽器不允許存資料（可能是無痕模式），紀錄將無法保留。請用一般模式開啟。"}
+refreshProjects();resetForm();
+</script>
+</body>
+</html>
